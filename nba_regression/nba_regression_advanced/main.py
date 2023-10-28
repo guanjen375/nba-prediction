@@ -30,7 +30,7 @@ url2 = 'https://stats.nba.com/stats/' \
       'OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&' \
       'PerMode=PerGame&Period=0&PlayerExperience=&' \
       'PlayerPosition=&PlusMinus=N&Rank=N&' \
-      'Season=2022-23' \
+      'Season=2023-24' \
       '&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&' \
       'StarterBench=&TeamID=0&TwoWay=0&VsConference=&VsDivision='
 
@@ -62,14 +62,23 @@ def createTodaysGames(games, df, odds):
             away_team_odds.append(input(away_team + ' odds: '))
         
         # calculate days rest for both teams
+        # calculate days rest for both teams
         dateparse = lambda x: datetime.strptime(x, '%d/%m/%Y %H:%M')
-        schedule_df = pd.read_csv('Data/nba-2022-UTC.csv', parse_dates=['Date'], date_parser=dateparse)
+        schedule_df = pd.read_csv('Data/nba-2023-UTC.csv', parse_dates=['Date'], date_parser=dateparse)
         home_games = schedule_df[(schedule_df['Home Team'] == home_team) | (schedule_df['Away Team'] == home_team)]
         away_games = schedule_df[(schedule_df['Home Team'] == away_team) | (schedule_df['Away Team'] == away_team)]
-        last_home_date = home_games.loc[schedule_df['Date'] <= datetime.today()].sort_values('Date',ascending=False).head(1)['Date'].iloc[0]
-        last_away_date = away_games.loc[schedule_df['Date'] <= datetime.today()].sort_values('Date',ascending=False).head(1)['Date'].iloc[0]
-        home_days_off = timedelta(days=1) + datetime.today() - last_home_date
-        away_days_off = timedelta(days=1) + datetime.today() - last_away_date
+        previous_home_games = home_games.loc[schedule_df['Date'] <= datetime.today()].sort_values('Date',ascending=False).head(1)['Date']
+        previous_away_games = away_games.loc[schedule_df['Date'] <= datetime.today()].sort_values('Date',ascending=False).head(1)['Date']
+        if len(previous_home_games) > 0:
+            last_home_date = previous_home_games.iloc[0]
+            home_days_off = timedelta(days=1) + datetime.today() - last_home_date
+        else:
+            home_days_off = timedelta(days=7)
+        if len(previous_away_games) > 0:
+            last_away_date = previous_away_games.iloc[0]
+            away_days_off = timedelta(days=1) + datetime.today() - last_away_date
+        else:
+            away_days_off = timedelta(days=7)
         # print(f"{away_team} days off: {away_days_off.days} @ {home_team} days off: {home_days_off.days}")
 
         home_team_days_rest.append(home_days_off.days)
@@ -77,8 +86,8 @@ def createTodaysGames(games, df, odds):
         home_team_series = df.iloc[team_index_current.get(home_team)]
         away_team_series = df.iloc[team_index_current.get(away_team)]
         stats = pd.concat([home_team_series, away_team_series])
-        stats['Days-Rest-Home'] = 2#home_days_off.days-1
-        stats['Days-Rest-Away'] = 2#away_days_off.days-1
+        stats['Days-Rest-Home'] = home_days_off.days
+        stats['Days-Rest-Away'] = away_days_off.days
         match_data.append(stats)
 
     games_data_frame = pd.concat(match_data, ignore_index=True, axis=1)
